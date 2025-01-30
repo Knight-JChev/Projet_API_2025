@@ -109,6 +109,6 @@ if __name__ == '__main__':
                 species_info["species"] = current_species
                 species_info["gene_symbol"] = symbol
 
-                print(InfoGene(species_info))
+                print("\t",InfoGene(species_info))
     else :
         print("Erreur : Veuillez donnez un nom de fichier accessible comme seul argument")
