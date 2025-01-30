@@ -1,5 +1,9 @@
+# !/usr/bin/ python3
+#-*- coding : utf-8 -*- 
 from Bio import Entrez, SeqIO
 import re
+import sys
+import os.path
 
 def Request (species_info, db, requete, retention) :
     """
@@ -88,8 +92,30 @@ def ProTranscript (species_info):
 
 def Info (species_info):
     """
-    Aggrège les différentes fonctions utilisées pour aller chercher les informations.
+    Aggrège les différentes fonctions utilisées pour aller chercher les informations 
     """
+    # Formate le nom de l'espèce pour le NCBI. Utile pour les bactéries.
+    species_info["species"] = "_".join(species_info["species"].split("_")[0:2])
+
+    # Appelle les fonctions pour récupérer les informations
     species_info = Gene(species_info)
     species_info = ProTranscript(species_info)
     return(species_info)
+
+# En cas de lancement par ligne de commande : lit le fichier en entrée
+if __name__ == '__main__':
+    gene_symbols = sys.argv[1]
+    if os.path.isfile(gene_symbols): # Vérifie que l'argument soit un fichier
+        with open(gene_symbols, "r") as infos:
+            for line in infos:
+                symbol = line.split(",")[0]
+                current_species = line[:-1].split(",")[1]
+
+                # Dictionnaire initial à passer en argument aux sous-scripts
+                species_info = {}
+                species_info["species"] = current_species
+                species_info["gene_symbol"] = symbol
+
+                Info(species_info)
+    else :
+        print("Erreur : Veuillez donnez un nom de fichier accessible comme seul argument")
