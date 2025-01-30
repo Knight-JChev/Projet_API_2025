@@ -111,4 +111,6 @@ if __name__ == '__main__':
 
                 print("\t",InfoGene(species_info))
     else :
-        print("Erreur : Veuillez donnez un nom de fichier accessible comme seul argument")
+        print("Erreur : Veuillez donnez un nom de fichier accessible comme seul argument \n"\
+              "Format de chaque ligne : [Symbole de gène],[Espèce] \n" \
+              "Ex: RAD51,homo_sapiens")
