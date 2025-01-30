@@ -5,8 +5,11 @@ import requests
 import sys
 import os.path
 
-## Fonction pour requête API et sortie en Json
 def RequestJson (server, ext):
+    """
+    Fonction pour requête API et sortie en Json
+    """
+
     r = requests.get(server+ext, headers={ "Content-Type" : "application/json"})
     
     #Retour en cas d'erreur
@@ -16,8 +19,11 @@ def RequestJson (server, ext):
 
     return(r.json())
 
-## Fonction pour récupérer la division Ensembl en cas d'échec de la méthode principale
+
 def RetrieveDivAlt(species) :
+    """
+    Fonction pour récupérer la division Ensembl en cas d'échec de la méthode principale
+    """
 
     # Retrouve les divisions ensembl 
     server = "https://rest.ensembl.org"
@@ -39,8 +45,12 @@ def RetrieveDivAlt(species) :
         j+=1
     return(div)
 
-## Fonction pour récupérer la division Ensembl 
+
 def RetrieveDiv (species) :
+    """
+    Fonction pour récupérer la division Ensembl 
+    """
+
     # Requête des infos concernant l'espèce
     server = "https://rest.ensembl.org" # Serveur Ensembl pour requête API
     ext = f"/info/assembly/{species}?" # Requête d'un assemblage de l'espèce
@@ -61,9 +71,12 @@ def RetrieveDiv (species) :
     
     return(division[7:].lower())
 
-## Fonction pour récupérer les informations relatives au symbole dans l'espèce spécifiée
+
 def InfoGene (species_info) :
-    
+    """
+    Fonction pour récupérer les informations relatives au symbole dans l'espèce spécifiée
+    """
+
     current_species = species_info["species"] # Raccourci   
 
     # Serveur Ensembl pour requête API
@@ -95,7 +108,7 @@ def InfoGene (species_info) :
     species_info["gene_browser"] = f"https://{div}.ensembl.org/{current_species.capitalize()}/Location/View?db=core;g={species_info["gene_id"]}"
     return(species_info)
 
-# En cas de lancement par ligne de commande : lit le fichier en entrée
+# En cas de lancement par ligne de commande : lit le fichier en argument
 if __name__ == '__main__':
     gene_symbols = sys.argv[1]
     if os.path.isfile(gene_symbols): # Vérifie que l'argument soit un fichier

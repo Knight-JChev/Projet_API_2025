@@ -71,7 +71,7 @@ def ProTranscript (species_info):
 
     # Parcours du fichier temporaire créé pour en extraire les informations
     for seq_record in SeqIO.parse(prot_file, "genbank"):
-        try : # Si db_source n'existe pas pour le record, passe au suivant
+        try : # Si db_source n'existe pas pour l'entrée en cours, passe à la suivante
             db_source = seq_record.annotations["db_source"].split(" ")
 
             if db_source[0] == "REFSEQ:" :
