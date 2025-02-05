@@ -1,2 +1,10 @@
-# Projet_API_2025
-BIMS/CCB4 repository for Léa, Laura, Christine and Julien.
+## Utilisation des scripts  
+Les scripts sont utilisable directement en ligne de commande en fournissant le nom du fichier voulu comme argument.
+
+## Dépendances
+Modules et librairies python nécessaires au fonctionnement des scripts :
+- re
+- Bio
+- sys
+- os.path
+- requests
