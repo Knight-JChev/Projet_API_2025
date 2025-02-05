@@ -1,0 +1,7 @@
+RAD51,homo_sapiens
+PHYB,arabidopsis_thaliana
+SFA1,saccharomyces_cerevisiae
+ACP,Leishmania_major
+HYBE,escherichia_coli_gca_006381815
+DMD,mus_musculus
+DPP,Drosophila_melanogaster

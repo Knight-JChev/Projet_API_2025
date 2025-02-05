@@ -8,6 +8,22 @@ Cahier des charges Projet Scripting-20250109/Results_4.html
 Cahier des charges Projet Scripting-20250109/Results_5.html
 Cahier des charges Projet Scripting-20250109/Results_6.html
 Cahier des charges Projet Scripting-20250109/Results_7.html
-Ensembl/
-NCBI/
 
+
+Tests/Ensembl/sortie_gene_human.txt
+Tests/Ensembl/test_api.py
+Tests/Ensembl/test_species_plants.txt
+Tests/Ensembl/test_species.txt
+Tests/Ensembl/testSymbols_45.txt
+Tests/NCBI/all_from_eu.fasta
+Tests/NCBI/all_from_eu.gbk
+Tests/NCBI/f1.gbk
+Tests/NCBI/GeneSymbols_45.txt
+Tests/NCBI/RAD51_gene.gbk
+Tests/NCBI/RAD51_prot.gbk
+Tests/NCBI/RAD51.gbk
+Tests/NCBI/tmp_gene.gbk
+Tests/NCBI/tmp_nucleotide.gbk
+Tests/NCBI/tmp_protein.gbk
+Tests/Ensembl/EMBL.html
+Tests/Ensembl/fichier_html.html
