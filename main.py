@@ -1,8 +1,8 @@
 # !/usr/bin/ python3
 #-*- coding : utf-8 -*-
 import sys
-from ensembl import Infogene 
-from ncbi import Info
+import ensembl
+import ncbi
 
 ## HTML Body
 body_html ="" # Initialisation du corps du HTML
