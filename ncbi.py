@@ -1,124 +1,237 @@
-# !/usr/bin/ python3
-#-*- coding : utf-8 -*- 
-
-from Bio import Entrez, SeqIO
+from Bio import Entrez
+from Bio import SeqIO
 import re
-import sys
-import os.path
+import os
 
-def Request (species_info, db, requete, retention) :
-    """
-    Effectue les requêtes API pour récupérer les informations sur le NCBI.
-    """
+def get_nested_value(data:dict, keys:list, default=None):
+  """
+Accède aux valeurs imbriquées dans un dictionnaire en suivant une liste de clés.
 
+Args:
+  data (dict): Dictionnaire à parcourir.
+  keys (list): Liste des clés à suivre pour trouver la valeur.
+  default: Valeur par défaut à retourner si une clé est absente.
 
-    Entrez.email = "Chevreau.julien21@gmail.com@univ-rouen.fr"
+Returns:
+  any: Valeur trouvée ou valeur par défaut.
+  """
+  for key in keys:
+    if isinstance(data, dict) and key in data:
+      data = data[key]
+    else:
+      return default
+  return data
 
-    # Va chercher les IDs dans la base de donnée demandée
-    handle = Entrez.esearch(db=db, term=requete, retmax=retention)
+def get_gene_name(record:dict):
+  """
+Permet de récupérer le nom du gène depuis différents champs.
+
+Args:
+  record (dict): Enregistrement NCBI (résultat d'une requête).
+
+Returns:
+  str: Nom du gène ou "Not available" si aucun nom n'est trouvé.
+  """
+  # Chemin 1 : Nom dans Gene-ref_formal-name
+  gene_name = get_nested_value(record, [
+      "Entrezgene_gene", "Gene-ref", "Gene-ref_formal-name", "Gene-nomenclature", "Gene-nomenclature_name"
+  ])
+  if gene_name:
+    return gene_name
+
+  # Chemin 2 : Description dans Gene-ref_desc
+  gene_desc = get_nested_value(record, ["Entrezgene_gene", "Gene-ref", "Gene-ref_desc"])
+  if gene_desc:
+    return gene_desc
+
+  # Chemin 3 : Protéine associée
+  prot_name = get_nested_value(record, ["Entrezgene_prot", "Prot-ref", "Prot-ref_name"])
+  if prot_name:
+    return prot_name[0] if isinstance(prot_name, list) else prot_name
+
+  # Chemin 4 : RNA associé
+  rna_name = get_nested_value(record, ["Entrezgene_rna", "RNA-ref_ext", "RNA-ref_ext_name"])
+  if rna_name:
+    return rna_name
+
+  return "Not available"
+
+def ncbi_extract(dico:dict, mail:str):
+  """
+Extrait les informations génomiques à partir de NCBI pour une liste d'espèces et de gènes.
+    
+Args:
+  dico (dict): Dictionnaire contenant les espèces et gènes.
+  mail (str): Adresse email pour l'accès à l'API NCBI.
+    
+Returns:
+  list: Liste de dictionnaires contenant les résultats pour chaque espèce et gène.
+  """
+  Entrez.email = mail
+  results = []
+
+  # Vérification préalable des dossiers nécessaires
+  if not os.path.exists("gbk") :
+    os.mkdir("gbk")
+
+  # Créer un fichier de résumé des résultats
+  for espece in dico :
+    gene = dico[espece]
+
+    # Extraction du nom d'espèce
+    regex = r"^[A-Za-z]*_{1}[a-z]*"
+    match = re.search(regex, espece, re.MULTILINE)
+    if match:
+      espece2 = match.group()
+    
+    # Requête à la base de données NCBI Gene
+    myterm = gene+"[Gene] AND " + espece2 + "[Orgn]"
+
+    handle = Entrez.esearch(db="gene", term=myterm, retmax=100)
     records = Entrez.read(handle)
     identifiers = records["IdList"]
 
-    # Cherche les données à partir des IDs. Résultat en format GenBank
-    handle = Entrez.efetch(db=db, id=identifiers, retmax="100",
-                            rettype="gbk", retmode="text")
-    text = handle.read()
+    if not identifiers:
+      continue
+    else:
+      print(f"Requête effectuée pour l'espèce {espece2}")
+    
+      handle = Entrez.efetch(db="gene", id=identifiers[0], rettype="xml", retmode="text", retmax=100)
+      records = Entrez.read(handle)
 
-    # Construit un fichier temporaire pour être lu ensuite
-    filename = "tmp_%s.gbk" % (db)
-    with open(filename,"w") as gbk:
-        gbk.write(text)
+      # Liste pour stocker les résultats
+      rna_access_number = []
+      rna_pred_access_number = []
+      prot_access_number = []
+      prot_pred_access_number = []
+      rna_link = []
+      rna_pred_link = []
+      prot_link = []
+      prot_pred_link = []
 
-    return(filename)
+      # Analyse des informations du gène
+      for record in records:
+        gene_symbol = get_nested_value(record, [
+          "Entrezgene_gene", "Gene-ref", "Gene-ref_locus"
+          ], default="Not available")
 
-def Gene (species_info) :
-    """
-    Récupère les informations relatives au gène d'intérêt
-    """
+        gene_name = get_gene_name(record)
 
-    # Requête pour la base de donnée
-    requete = "%s[Orgn] AND %s[gene Name] AND Refseq [Keyword]" % (species_info["species"], species_info["gene_symbol"])
-    gene_file = Request(species_info,"gene", requete, 1)
+        gene_id = get_nested_value(record, [
+              "Entrezgene_track-info", "Gene-track", "Gene-track_geneid"
+          ], default="Not available")
+      
+        gene_link = "https://www.ncbi.nlm.nih.gov/gene/"+gene_id
 
-    # Ouverture et lecture du fichier temporaire contenant les informations du gène
-    with open(gene_file,"r") as file:
-        content = "".join(file.readlines())
+        # Recherche des numéros d'accesssions des protéines pour la Bactérie (pas de transcrits trouvés dans NCBI Nucleotide)
+        orga = record['Entrezgene_source']['BioSource']['BioSource_org']['Org-ref']['Org-ref_orgname']['OrgName']['OrgName_div']
+        if orga == "BCT":
+          prot_access_number.append(record["Entrezgene_locus"][0]["Gene-commentary_products"][0]["Gene-commentary_accession"])
 
-        # Expressions régulières pour trouver ID et nom officiel
-        pattern_id = re.search(r"ID:\s(\d*)",content)
-        pattern_official = re.search(r"Name:\s(.*)\s\[",content)
-        pattern_official_alt = re.search(r"(.*)\s\[.*\]",content)
+      # Requête à la base de données NCBI Nucleotide
 
-        # Population du dictionnaire en cas de match
-        if pattern_official != None :
-            species_info["official_name"] = pattern_official.group(1)
-        elif pattern_official_alt != None : # Pattern alternatif dans le cas où le premier n'est pas trouvé
-            species_info["official_name"] = pattern_official_alt.group(1)
+      handle = Entrez.esearch(db="nucleotide", term=myterm, retmax=100)
+      records = Entrez.read(handle)
+      identifiers = records["IdList"]
 
-        if pattern_id != None :
-            species_info["gene_id"] = pattern_id.group(1)
-    return(species_info)
+      handle = Entrez.efetch(db="nucleotide", id=identifiers, rettype="gb", retmode="text", retmax=100)
+      text = handle.read()
+      genbankfile = "./gbk/" + gene + "_" + espece2 + "_RefSeq.gbk"
+      with open(genbankfile, "w") as genbank_file:
+        genbank_file.write(text)
 
-def ProTranscript (species_info):
-    """
-    Récupère les informations relatives aux protéines et transcrits traduits
-    """
+      # Dictionnaire qui permettra de vérifier la présence de séquences codantes
+      feat_type = {"CDS":0}
 
-    # Requête qui récupère les entrées officielles RefSeq
-    requete = "%s[Orgn] AND %s[gene Name] AND srcdb refseq [properties]" % (species_info["species"], species_info["gene_symbol"])
+      for seq_record in SeqIO.parse(genbankfile, "genbank"):
+        # Récupération des séquences d'ARN (numéro d'accession commençant par NM)
+        if seq_record.name.startswith("NM_"):
+          ncbit = seq_record.name
+          rna_access_number.append(ncbit)
 
-    # Passage de la requête à la fonction qui va chercher les informations
-    prot_file = Request(species_info, "protein",requete ,60)
+          for feat in seq_record.features:
 
-    # Parcours du fichier temporaire créé pour en extraire les informations
-    for seq_record in SeqIO.parse(prot_file, "genbank"):
-        try : # Si db_source n'existe pas pour l'entrée en cours, passe à la suivante
-            db_source = seq_record.annotations["db_source"].split(" ")
+            if feat.type in feat_type:
+              feat_type[feat.type] += 1
+            else:
+              feat_type[feat.type] = 1
 
-            if db_source[0] == "REFSEQ:" :
-                if "transcript_id" not in species_info :
-                    species_info["transcript_id"] = [db_source[-1]]
-                    species_info["prot_id"] = [seq_record.id]
-                else :
-                    species_info["transcript_id"].append(db_source[-1])
-                    species_info["prot_id"].append(seq_record.id)
-        except :
-            continue
+            if feat.type == "CDS":
+              for qual in feat.qualifiers:
+                if qual == "gene":
+                  if gene in feat.qualifiers[qual]:
+                    continue
+                  else:
+                    break
+                elif qual == "protein_id":
+                  ncbip = feat.qualifiers[qual]
+                  prot_access_number.append(ncbip[0])
 
-    # Indique si aucun transcrit/protéine n'est trouvé            
-    if "transcript_id" not in species_info :
-                species_info["transcript_id"] = ["No data found"]
-                species_info["prot_id"] = ["No data found"]
-    return(species_info)
+          if feat_type["CDS"] == 0:
+            prot_access_number.append("No protein translated from this transcript")
+        
+          feat_type = {"CDS":0}
 
-def Info (species_info):
-    """
-    Aggrège les différentes fonctions utilisées pour aller chercher les informations 
-    """
-    # Formate le nom de l'espèce pour le NCBI. Utile pour les bactéries.
-    species_info["species"] = "_".join(species_info["species"].split("_")[0:2])
+        elif seq_record.name.startswith("XM_"):
+          ncbitp = seq_record.name
+          rna_pred_access_number.append(ncbitp)
 
-    # Appelle les fonctions pour récupérer les informations
-    species_info = Gene(species_info)
-    species_info = ProTranscript(species_info)
-    return(species_info)
+          for feat in seq_record.features:
 
-# En cas de lancement par ligne de commande : lit le fichier en entrée
+            if feat.type in feat_type:
+              feat_type[feat.type] += 1
+            else:
+              feat_type[feat.type] = 1
+
+            if feat.type == "CDS":
+              for qual in feat.qualifiers:
+                if qual == "gene":
+                  if gene in feat.qualifiers[qual]:
+                    continue
+                  else:
+                    break
+                elif qual == "protein_id":
+                  ncbipp = feat.qualifiers[qual]
+                  prot_pred_access_number.append(ncbipp[0])
+
+          if feat_type["CDS"] == 0:
+            prot_pred_access_number.append("No protein translated from this transcript")
+        
+          feat_type = {"CDS":0}
+
+      if rna_access_number:
+        for nm in rna_access_number:
+          rna_link.append("https://www.ncbi.nlm.nih.gov/nuccore/"+nm)
+
+      if rna_pred_access_number:
+        for xm in rna_pred_access_number:
+          rna_pred_link.append("https://www.ncbi.nlm.nih.gov/nuccore/"+xm)
+
+      if prot_access_number:
+        for np in prot_access_number:
+          prot_link.append("https://www.ncbi.nlm.nih.gov/protein/" + np)
+
+      if prot_pred_access_number:
+        for xp in prot_pred_access_number:
+          prot_pred_link.append("https://www.ncbi.nlm.nih.gov/protein/" + xp)
+
+      results.append({
+        "species": espece,
+        "gene_symbol": gene_symbol,
+        "gene_name": gene_name,
+        "gene_id": gene_id,
+        "gene_link": gene_link,
+        "rna_id": rna_access_number if rna_access_number else "No data found",
+        "prot_id": prot_access_number if prot_access_number else "No data found",
+        "rna_pred_id": rna_pred_access_number if rna_pred_access_number else "No data found",
+        "prot_pred_id": prot_pred_access_number if prot_pred_access_number else "No data found",
+        "rna_link": rna_link if rna_link else None,
+        "prot_link": prot_link if prot_link else None,
+        "rna_pred_link": rna_pred_link if rna_pred_link else None,
+        "prot_pred_link": prot_pred_link if prot_pred_link else None
+      })
+
+  return results
+
 if __name__ == '__main__':
-    gene_symbols = sys.argv[1]
-    if os.path.isfile(gene_symbols): # Vérifie que l'argument soit un fichier
-        with open(gene_symbols, "r") as infos:
-            for line in infos:
-                symbol = line.split(",")[0]
-                current_species = line[:-1].split(",")[1]
-
-                # Dictionnaire initial à passer en argument aux sous-scripts
-                species_info = {}
-                species_info["species"] = current_species
-                species_info["gene_symbol"] = symbol
-
-                print("\t",Info(species_info))
-    else :
-        print("Erreur : Veuillez donnez un nom de fichier accessible comme seul argument \n"\
-        "Format de chaque ligne : [Symbole de gène],[Espèce] \n" \
-        "Ex: RAD51,homo_sapiens")
+  print("Ce fichier est destiné à être importé comme un module.")
