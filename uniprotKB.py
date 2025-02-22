@@ -1,40 +1,12 @@
 import requests, sys, json
 
-fichier = "LC_GeneSymbols_45.txt"
-
-def liste_gene_uniprot(fichier):
-    dico_espece_gene = {}
-
-    with open(fichier, "r") as file:
-        for ligne in file:
-            li = ligne.strip().split(",")  # Suppression des espaces inutiles et séparation
-
-            if len(li) == 2:  # Vérification que la ligne est correcte
-                gene = li[0].strip()
-                espece = li[1].strip().replace("_", " ").lower()  # Tout en minuscule
-
-                # Nettoyage des noms d'espèces s'ils contiennent "gca"
-                if "gca" and "coli" in espece:  
-                    espece = "Escherichia coli (strain K12)"  # Séparation et nettoyage
-                
-                espece = espece.capitalize()  # Mettre seulement la première lettre en majuscule
-                
-                dico_espece_gene[gene] = espece  # Stockage dans le dictionnaire
-
-    return dico_espece_gene 
-
-dico_espece_gene = liste_gene_uniprot(fichier)
-print(dico_espece_gene)
-
-
 def extraire_info_uniprot(dico_espece_gene):
-    dico_uniprot_id = {}
-    dico_uniprot_nom = {}
-    dico_uniprot_pdb = {}
+
     dico_uniprot = {'gene_symbol':'','uniprot_id':'','protein_name':'','pdb_id':''}
     uniprot =[]
     pdb_entries = []
-    for gene, espece in dico_espece_gene.items():
+    for espece, gene in dico_espece_gene.items():
+        print(espece)
         query = f"gene:{gene} AND reviewed:true AND {espece}"
         params = {
         "query": query,
@@ -51,7 +23,6 @@ def extraire_info_uniprot(dico_espece_gene):
         response = requests.get(base_url, headers=headers, params=params)
     
         if not response.ok:
-            print(f"Erreur pour {gene} ({espece}) : {response.status_code}")
             continue  # Passe au gène suivant au lieu d'arrêter
 
     # Extraction des données JSON
@@ -88,22 +59,15 @@ def extraire_info_uniprot(dico_espece_gene):
                         pdb_entries.append(xref.get("id"))
 
             # Stockage dans les dictionnaires
-                dico_uniprot_id[gene] = accession
-                dico_uniprot_nom[gene] = protein_name['value']
-                dico_uniprot_pdb[gene] = pdb_entries
                 dico_uniprot['gene_symbol']=gene
                 dico_uniprot['uniprot_id']=accession
                 dico_uniprot['protein_name']=protein_name['value']
                 dico_uniprot['pdb_id']=pdb_entries
                 uniprot.append(dico_uniprot)
-    return dico_uniprot_id,dico_uniprot_nom,dico_uniprot_pdb, uniprot
+    return  uniprot
 
 
-dico_uniprot_id, dico_uniprot_nom, dico_uniprot_pdb, uniprot = extraire_info_uniprot(dico_espece_gene)
+uniprot = extraire_info_uniprot(dico)
 
-print(dico_uniprot_id)
-print(dico_uniprot_nom)
-print(dico_uniprot_pdb)
 print(uniprot)
-#fusionner les 3 dictionnaire en 1
 # nom de gene = gene_symbol
