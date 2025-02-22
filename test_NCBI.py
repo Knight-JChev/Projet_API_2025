@@ -1,3 +1,6 @@
+# !/usr/bin/ python3
+#-*- coding : utf-8 -*- 
+
 from Bio import Entrez 
 import json 
 
@@ -97,7 +100,6 @@ def extract_info (gene_symbol, organism) :
               "Transcript" : nucleotide_info
               }
 
-
 def main (dico_sp) :
     dico_NCBI={}
     # faire un dico avec tout les infos pour tout les gene/espèce
@@ -107,7 +109,6 @@ def main (dico_sp) :
     return dico_NCBI
 
 
-
-fichier = input("Entrez une fichier avec pour chaque ligne gene,espece : ")
-dico = GeneSymbol(fichier)
-print(main(dico_sp= dico))
+#fichier = input("Entrez une fichier avec pour chaque ligne gene,espece : ")
+#dico = GeneSymbol(fichier)
+#print(main(dico_sp= dico))
